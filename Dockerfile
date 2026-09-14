@@ -66,4 +66,5 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]
+ENTRYPOINT ["frankenphp"]
+CMD ["run", "--config", "/etc/frankenphp/Caddyfile"]
