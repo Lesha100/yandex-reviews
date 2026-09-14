@@ -16,7 +16,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('reviews', function (Blueprint $table) {
-            $table->string('author')->nullable()->change();
+            $table->string('author')->nullable(false)->change();
         });
     }
 };
