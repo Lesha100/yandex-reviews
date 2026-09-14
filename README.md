@@ -1,58 +1,260 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Yandex Reviews
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Тестовое приложение для получения данных организации и отзывов с Яндекс.Карт.
 
-## About Laravel
+## Стек
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.3
+- Laravel 13
+- PostgreSQL
+- Vue 3 / Composition API
+- Laravel Sanctum
+- Docker / FrankenPHP
+- Render
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Demo
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**Application:** https://yandex-reviews.onrender.com
 
-## Learning Laravel
+Демо-пользователь изначально прописан для удобства:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```text
+Email: test@example.com
+Password: password
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+После авторизации можно указать ссылку на любую организацию в Яндекс.Картах.
 
-## Contributing
+## Локальный запуск
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Требования:
 
-## Code of Conduct
+- Docker
+- Docker Compose
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Клонировать проект:
 
-## Security Vulnerabilities
+```bash
+git clone https://github.com/Lesha100/yandex-reviews.git
+cd yandex-reviews
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Запустить Docker Compose:
 
-## License
+```bash
+cd docker_q
+docker compose up -d --build
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Приложение будет доступно по адресу:
+`http://localhost:90`
+
+Для frontend-разработки при необходимости:
+
+```bash
+npm install
+npm run dev
+```
+
+## Environment
+
+Основные переменные Laravel:
+
+```ini
+APP_ENV=local
+APP_DEBUG=true
+APP_KEY=
+
+APP_URL=http://localhost:90
+
+DB_CONNECTION=pgsql
+DB_HOST=pgsql
+DB_PORT=5432
+DB_DATABASE=db
+DB_USERNAME=user
+DB_PASSWORD=password
+
+SESSION_DRIVER=database
+SANCTUM_STATEFUL_DOMAINS=localhost:90,127.0.0.1:90
+
+QUEUE_CONNECTION=database
+```
+
+Для production значения задаются через Environment Variables хостинга.
+Для Render используется подключение PostgreSQL через `DB_URL`.
+
+## Как работает парсинг
+
+Официальный API для получения отзывов в рамках задания не используется.
+Приложение получает HTML страницы организации и извлекает данные из JSON состояния страницы Яндекс.Карт.
+
+**Основной поток:**
+
+```text
+URL организации
+      ↓
+YandexMapsUrlResolver
+      ↓
+canonical URL
+      ↓
+YandexMapsClient
+      ↓
+HTML страницы
+      ↓
+YandexMapsParser
+      ↓
+state-view JSON
+      ↓
+DTO
+      ↓
+PostgreSQL
+```
+
+В HTML страницы используется:
+
+```html
+<script type="application/json" class="state-view">
+```
+
+Из него извлекаются:
+- название организации;
+- Yandex ID;
+- средний рейтинг;
+- количество оценок;
+- количество отзывов;
+- автор;
+- дата;
+- текст;
+- рейтинг каждого отзыва.
+
+Отзывы загружаются страницами по 50 записей.
+Текущая реализация обрабатывает до 12 страниц (~600 отзывов) и удаляет дубли по внешнему `reviewId`.
+
+## Почему HTTP-парсер вместо Headless Browser
+
+Для получения данных используется обычный HTTP-клиент вместо Playwright/Selenium.
+
+**Плюсы:**
+- меньше потребление CPU/RAM;
+- быстрее обработка;
+- не требуется запуск браузера;
+- проще Docker/deployment;
+- хорошо подходит для серверного фонового парсинга.
+
+**Минусы:**
+- парсер зависит от внутренней структуры страницы Яндекс.Карт;
+- изменение JSON-структуры может потребовать изменения парсера.
+
+Headless browser был бы более универсальным вариантом для сложной клиентской логики, но потребовал бы больше ресурсов и усложнил deployment.
+
+## Обработка ошибок и изменение разметки
+
+Парсер не считает отсутствие данных успешным результатом.
+Проверяются:
+- наличие state-view;
+- корректность JSON;
+- наличие основных данных организации;
+- наличие необходимых полей отзывов;
+- корректность рейтингов и счётчиков.
+
+При изменении структуры Яндекс.Карт выбрасывается отдельное исключение:
+`YandexMapsStructureChangedException`
+
+Ошибка сохраняется в организации и отображается пользователю.
+Таким образом, изменение разметки не приводит к тихому сохранению пустых или некорректных данных.
+
+## Фоновый парсинг
+
+Получение нескольких сотен отзывов не выполняется внутри HTTP-запроса.
+После добавления URL создаётся `ParseOrganizationJob`:
+
+```text
+POST /api/organizations
+        ↓
+создание организации
+        ↓
+dispatch ParseOrganizationJob
+        ↓
+queue worker
+        ↓
+получение страниц
+        ↓
+обновление progress
+        ↓
+completed / failed
+```
+
+Frontend периодически запрашивает статус организации и отображает прогресс обработки.
+Job имеет повторные попытки и backoff при временных ошибках.
+
+Для production-среды queue worker следует запускать отдельным процессом/сервисом.
+В текущем бесплатном demo deployment worker запускается вместе с web-приложением.
+
+## Защита от блокировок
+
+HTTP-клиент использует:
+- browser-like User-Agent;
+- таймаут подключения;
+- таймаут запроса;
+- обработку 403;
+- обработку 429;
+- повторные попытки при временных ошибках;
+- exponential backoff;
+- обработку Retry-After;
+- повторные попытки для 5xx.
+
+Искусственные задержки между обычными страницами намеренно не добавлялись, чтобы не увеличивать время обработки без необходимости.
+
+Для большого production-объёма дополнительно использовал бы:
+- throttling запросов;
+- распределённый rate limit;
+- proxy rotation;
+- User-Agent rotation;
+- более агрессивный backoff после блокировок.
+
+## Идемпотентность
+
+Отзывы сохраняются по внешнему идентификатору Яндекс.Карт.
+При повторном парсинге используется `updateOrCreate`, поэтому:
+- существующие отзывы обновляются;
+- новые отзывы добавляются;
+- дубли не создаются.
+
+В базе также используются уникальные ограничения:
+- `organizations: (user_id, yandex_url)`
+- `reviews: (organization_id, external_id)`
+
+Для полноценной production-версии можно добавить историю запусков парсера и snapshots:
+
+```text
+ParsingRun
+    ↓
+OrganizationSnapshot
+    ↓
+ReviewSnapshot
+```
+
+Это позволит хранить историю изменений рейтинга, счётчиков и отзывов между запусками.
+
+## API
+
+Основные endpoints:
+
+Отзывы поддерживают серверную пагинацию:
+`GET /api/reviews?page=1`
+
+Размер страницы — 50 отзывов.
+
+## Структура проекта
+
+Основная логика работы с Яндекс.Картами вынесена из контроллеров:
+
+Контроллеры отвечают только за HTTP/API-уровень, а получение, разбор и сохранение данных выполняются отдельными сервисами.
+
+## Что улучшил бы при большем времени
+
+- добавить историю запусков парсинга и snapshots;
+- расширить автоматические тесты parser/API;
+- вынести queue worker в отдельный production-сервис;
+- добавить полноценный rate limiting и proxy pool для большого количества организаций;
+- добавить мониторинг queue и ошибок парсинга.
