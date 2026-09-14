@@ -63,10 +63,12 @@ RUN mkdir -p \
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 COPY Caddyfile /etc/frankenphp/Caddyfile
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV PORT=8080
 
 EXPOSE 8080
 
-ENTRYPOINT ["frankenphp"]
-CMD ["run", "--config", "/etc/frankenphp/Caddyfile"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
