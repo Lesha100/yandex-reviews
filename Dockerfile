@@ -15,6 +15,11 @@ RUN npm run build
 
 FROM dunglas/frankenphp:php8.3
 
+RUN ls -l /usr/local/bin/frankenphp \
+    && file /usr/local/bin/frankenphp \
+    && id \
+    && uname -a
+
 WORKDIR /app
 
 RUN install-php-extensions \
