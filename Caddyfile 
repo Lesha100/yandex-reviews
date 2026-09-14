@@ -1,4 +1,4 @@
-:8080 {
+:{$PORT} {
     root * /app/public
 
     encode gzip
@@ -7,4 +7,3 @@
 
     file_server
 }
-

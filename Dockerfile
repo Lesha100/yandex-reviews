@@ -62,6 +62,8 @@ RUN chown -R www-data:www-data storage bootstrap/cache
 
 COPY Caddyfile /etc/frankenphp/Caddyfile
 
+ENV PORT=8080
+
 EXPOSE 8080
 
 CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]
